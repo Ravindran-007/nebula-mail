@@ -18,6 +18,7 @@ interface Props {
     setView: (v: View) => void;
     setFilters: (f: Filters) => void;
     openMessage: (id: string) => Promise<void>;
+    deleteMessage: (id: string) => Promise<void>;
     setCompose: (c: ComposeState) => void;
     sendCompose: (overrideCompose?: ComposeState) => Promise<void>;
     refresh: (override?: { view?: View; filters?: Filters }) => Promise<void>;
@@ -71,16 +72,23 @@ export default function AssistantActions({ state, actions }: Props) {
       { name: "body", type: "string", required: true, description: "Email body text" },
     ],
     handler: async ({ to, subject, body }) => {
-      actions.setCompose({ to, subject, body });
-      actions.setView("compose");
-      setLastActionMessage(`Draft created for ${to}`);
-      return {
-        status: "success",
-        to,
-        subject,
-        bodySnippet: body.slice(0, 120),
-        message: "Compose form has been opened and filled on screen for review.",
-      };
+      try {
+        actions.setCompose({ to: to || "", subject: subject || "", body: body || "" });
+        actions.setView("compose");
+        setLastActionMessage(`Draft created for ${to}`);
+        return {
+          status: "success",
+          to: to || "",
+          subject: subject || "",
+          bodySnippet: (body || "").slice(0, 120),
+          message: "Compose form has been opened and filled on screen for review.",
+        };
+      } catch (err: any) {
+        return {
+          status: "error",
+          message: err?.message || "Failed to prepare compose draft.",
+        };
+      }
     },
     render: ({ status, args, result }) => {
       return (
@@ -131,23 +139,30 @@ export default function AssistantActions({ state, actions }: Props) {
       { name: "label", type: "string", required: false, description: "'inbox' or 'sent'" },
     ],
     handler: async ({ query, sender, afterDays, unreadOnly, label }) => {
-      const targetView = label === "sent" ? "sent" : "inbox";
-      const nextFilters: Filters = {
-        query: query || undefined,
-        sender: sender || undefined,
-        afterDays: afterDays || undefined,
-        unreadOnly: !!unreadOnly,
-      };
-      actions.setView(targetView);
-      actions.setFilters(nextFilters);
-      await actions.refresh({ view: targetView, filters: nextFilters });
-      setLastActionMessage("Updated mailbox list with filters");
-      return {
-        status: "success",
-        targetView,
-        filters: nextFilters,
-        message: "Mailbox list updated on the main UI.",
-      };
+      try {
+        const targetView = label === "sent" ? "sent" : "inbox";
+        const nextFilters: Filters = {
+          query: query || undefined,
+          sender: sender || undefined,
+          afterDays: afterDays || undefined,
+          unreadOnly: !!unreadOnly,
+        };
+        actions.setView(targetView);
+        actions.setFilters(nextFilters);
+        await actions.refresh({ view: targetView, filters: nextFilters });
+        setLastActionMessage("Updated mailbox list with filters");
+        return {
+          status: "success",
+          targetView,
+          filters: nextFilters,
+          message: "Mailbox list updated on the main UI.",
+        };
+      } catch (err: any) {
+        return {
+          status: "error",
+          message: err?.message || "Failed to search mailbox.",
+        };
+      }
     },
     render: ({ status, args }) => {
       const activePills: string[] = [];
@@ -187,49 +202,56 @@ export default function AssistantActions({ state, actions }: Props) {
       { name: "query", type: "string", required: false, description: "Subject or content keyword" },
     ],
     handler: async ({ messageId, sender, query }) => {
-      let targetId = messageId;
+      try {
+        let targetId = messageId;
 
-      // If no direct messageId, find the latest matching email from current list or fetch
-      if (!targetId && (sender || query)) {
-        const needle = (sender || query || "").toLowerCase();
-        const found = state.messages.find(
-          (m) =>
-            m.from.toLowerCase().includes(needle) ||
-            m.subject.toLowerCase().includes(needle)
-        );
-        if (found) {
-          targetId = found.id;
-        } else {
-          // Attempt a quick search via API
-          try {
-            const params = new URLSearchParams();
-            if (sender) params.set("sender", sender);
-            if (query) params.set("query", query);
-            const res = await fetch(`/api/gmail/messages?${params.toString()}`);
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-              targetId = data[0].id;
+        // If no direct messageId, find the latest matching email from current list or fetch
+        if (!targetId && (sender || query)) {
+          const needle = (sender || query || "").toLowerCase();
+          const found = state.messages.find(
+            (m) =>
+              (m.from || "").toLowerCase().includes(needle) ||
+              (m.subject || "").toLowerCase().includes(needle)
+          );
+          if (found) {
+            targetId = found.id;
+          } else {
+            // Attempt a quick search via API
+            try {
+              const params = new URLSearchParams();
+              if (sender) params.set("sender", sender);
+              if (query) params.set("query", query);
+              const res = await fetch(`/api/gmail/messages?${params.toString()}`);
+              const data = await res.json();
+              if (Array.isArray(data) && data.length > 0) {
+                targetId = data[0].id;
+              }
+            } catch (e) {
+              console.error("Error searching for email to open:", e);
             }
-          } catch (e) {
-            console.error("Error searching for email to open:", e);
           }
         }
-      }
 
-      if (!targetId) {
-        if (state.messages.length > 0) {
-          targetId = state.messages[0].id;
-        } else {
-          return { status: "error", message: "No matching email found to open." };
+        if (!targetId) {
+          if (state.messages.length > 0) {
+            targetId = state.messages[0].id;
+          } else {
+            return { status: "error", message: "No matching email found to open." };
+          }
         }
-      }
 
-      await actions.openMessage(targetId);
-      return {
-        status: "success",
-        messageId: targetId,
-        message: "Email opened in full detail view.",
-      };
+        await actions.openMessage(targetId);
+        return {
+          status: "success",
+          messageId: targetId,
+          message: "Email opened in full detail view.",
+        };
+      } catch (err: any) {
+        return {
+          status: "error",
+          message: err?.message || "Failed to open email.",
+        };
+      }
     },
     render: ({ args, result }) => {
       return (
@@ -253,34 +275,41 @@ export default function AssistantActions({ state, actions }: Props) {
       { name: "body", type: "string", required: true, description: "Content of the reply message" },
     ],
     handler: async ({ body }) => {
-      if (!state.selected) {
+      try {
+        if (!state.selected) {
+          return {
+            status: "error",
+            message: "No email is currently open. Please open an email first before replying.",
+          };
+        }
+
+        const replyTo = state.selected.from || "";
+        const cleanSubject = (state.selected.subject || "").startsWith("Re:")
+          ? state.selected.subject
+          : `Re: ${state.selected.subject || ""}`;
+
+        actions.setCompose({
+          to: replyTo,
+          subject: cleanSubject,
+          body: body || "",
+          inReplyToMessageId: state.selected.id,
+          threadId: state.selected.threadId,
+        });
+        actions.setView("compose");
+
+        return {
+          status: "success",
+          to: replyTo,
+          subject: cleanSubject,
+          body: body || "",
+          message: "Reply draft prepared and loaded into compose editor.",
+        };
+      } catch (err: any) {
         return {
           status: "error",
-          message: "No email is currently open. Please open an email first before replying.",
+          message: err?.message || "Failed to prepare reply draft.",
         };
       }
-
-      const replyTo = state.selected.from;
-      const cleanSubject = state.selected.subject.startsWith("Re:")
-        ? state.selected.subject
-        : `Re: ${state.selected.subject}`;
-
-      actions.setCompose({
-        to: replyTo,
-        subject: cleanSubject,
-        body,
-        inReplyToMessageId: state.selected.id,
-        threadId: state.selected.threadId,
-      });
-      actions.setView("compose");
-
-      return {
-        status: "success",
-        to,
-        subject: cleanSubject,
-        body,
-        message: "Reply draft prepared and loaded into compose editor.",
-      };
     },
     render: ({ args }) => {
       return (
@@ -316,39 +345,46 @@ export default function AssistantActions({ state, actions }: Props) {
       { name: "note", type: "string", required: false, description: "Personal note to prepend to forwarded mail" },
     ],
     handler: async ({ to, note }) => {
-      if (!state.selected) {
-        return {
-          status: "error",
-          message: "No email is currently open to forward. Please open an email first.",
-        };
-      }
+      try {
+        if (!state.selected) {
+          return {
+            status: "error",
+            message: "No email is currently open to forward. Please open an email first.",
+          };
+        }
 
-      const forwardSubject = state.selected.subject.startsWith("Fwd:")
-        ? state.selected.subject
-        : `Fwd: ${state.selected.subject}`;
+        const forwardSubject = (state.selected.subject || "").startsWith("Fwd:")
+          ? state.selected.subject
+          : `Fwd: ${state.selected.subject || ""}`;
 
-      const forwardedBody = `${note ? note + "\n\n" : ""}---------- Forwarded message ---------
-From: ${state.selected.from}
-Date: ${state.selected.date}
-Subject: ${state.selected.subject}
-To: ${state.selected.to}
+        const forwardedBody = `${note ? note + "\n\n" : ""}---------- Forwarded message ---------
+From: ${state.selected.from || ""}
+Date: ${state.selected.date || ""}
+Subject: ${state.selected.subject || ""}
+To: ${state.selected.to || ""}
 
 ${state.selected.body || state.selected.preview || ""}`;
 
-      actions.setCompose({
-        to,
-        subject: forwardSubject,
-        body: forwardedBody,
-        isForward: true,
-      });
-      actions.setView("compose");
+        actions.setCompose({
+          to: to || "",
+          subject: forwardSubject,
+          body: forwardedBody,
+          isForward: true,
+        });
+        actions.setView("compose");
 
-      return {
-        status: "success",
-        to,
-        subject: forwardSubject,
-        message: "Forward draft populated in the compose form.",
-      };
+        return {
+          status: "success",
+          to: to || "",
+          subject: forwardSubject,
+          message: "Forward draft populated in the compose form.",
+        };
+      } catch (err: any) {
+        return {
+          status: "error",
+          message: err?.message || "Failed to prepare forward draft.",
+        };
+      }
     },
     render: ({ args }) => {
       return (
@@ -380,14 +416,21 @@ ${state.selected.body || state.selected.preview || ""}`;
       { name: "body", type: "string", required: true },
     ],
     handler: async ({ to, subject, body }) => {
-      actions.setCompose({ to, subject, body });
-      return {
-        status: "awaiting_confirmation",
-        to,
-        subject,
-        body,
-        message: "Confirmation card rendered for user approval.",
-      };
+      try {
+        actions.setCompose({ to: to || "", subject: subject || "", body: body || "" });
+        return {
+          status: "awaiting_confirmation",
+          to: to || "",
+          subject: subject || "",
+          body: body || "",
+          message: "Confirmation card rendered for user approval.",
+        };
+      } catch (err: any) {
+        return {
+          status: "error",
+          message: err?.message || "Failed to set compose draft.",
+        };
+      }
     },
     render: ({ args }) => {
       return (
@@ -436,9 +479,138 @@ ${state.selected.body || state.selected.preview || ""}`;
       { name: "theme", type: "string", required: true, description: "'light' or 'dark'" },
     ],
     handler: async ({ theme }) => {
-      const mode = theme === "dark" ? "dark" : "light";
-      actions.setTheme(mode);
-      return `Theme switched to ${mode} mode.`;
+      try {
+        const mode = theme === "dark" ? "dark" : "light";
+        actions.setTheme(mode);
+        return {
+          status: "success",
+          theme: mode,
+          message: `Theme switched to ${mode} mode.`,
+        };
+      } catch (err: any) {
+        return {
+          status: "error",
+          message: err?.message || "Failed to switch theme.",
+        };
+      }
+    },
+  });
+
+  // Action 8: Move Email to Trash / Delete Email
+  useCopilotAction({
+    name: "deleteEmail",
+    description:
+      "Move an email to Trash (delete email) in Gmail. Use this when the user says 'Delete this email', 'Move this email to trash', 'Trash this email', 'Delete the email from [sender]', or requests to remove an email.",
+    parameters: [
+      {
+        name: "messageId",
+        type: "string",
+        required: false,
+        description: "Exact Gmail message ID to delete. If omitted, deletes the currently open email or the top email matching sender/query.",
+      },
+      {
+        name: "sender",
+        type: "string",
+        required: false,
+        description: "Sender name or email address to match if no specific email is currently open.",
+      },
+      {
+        name: "query",
+        type: "string",
+        required: false,
+        description: "Subject keywords or search phrase to match if no specific email is currently open.",
+      },
+    ],
+    handler: async ({ messageId, sender, query }) => {
+      try {
+        let targetId = messageId;
+        let targetSubject = "";
+        let targetSender = "";
+
+        // Case 1: If an email is currently open in detail view and no conflicting filter is specified
+        if (!targetId && !sender && !query && state.selected) {
+          targetId = state.selected.id;
+          targetSubject = state.selected.subject;
+          targetSender = state.selected.from;
+        }
+
+        // Case 2: Matching by sender or query in current messages list or via search
+        if (!targetId && (sender || query)) {
+          const needle = (sender || query || "").toLowerCase();
+          const found = state.messages.find(
+            (m) =>
+              (m.from || "").toLowerCase().includes(needle) ||
+              (m.subject || "").toLowerCase().includes(needle)
+          );
+          if (found) {
+            targetId = found.id;
+            targetSubject = found.subject;
+            targetSender = found.from;
+          } else {
+            // Attempt a search via API
+            try {
+              const params = new URLSearchParams();
+              if (sender) params.set("sender", sender);
+              if (query) params.set("query", query);
+              const res = await fetch(`/api/gmail/messages?${params.toString()}`);
+              const data = await res.json();
+              if (Array.isArray(data) && data.length > 0) {
+                targetId = data[0].id;
+                targetSubject = data[0].subject;
+                targetSender = data[0].from;
+              }
+            } catch (e) {
+              console.error("Error searching email to delete:", e);
+            }
+          }
+        }
+
+        // Case 3: If still not resolved, fall back to currently open email
+        if (!targetId && state.selected) {
+          targetId = state.selected.id;
+          targetSubject = state.selected.subject;
+          targetSender = state.selected.from;
+        }
+
+        if (!targetId) {
+          return {
+            status: "error",
+            message: "Please open an email first or specify which email to delete (e.g. 'Delete email from David').",
+          };
+        }
+
+        await actions.deleteMessage(targetId);
+        return {
+          status: "success",
+          messageId: targetId,
+          subject: targetSubject || "(email)",
+          sender: targetSender || "",
+          message: "Email successfully moved to Gmail Trash.",
+        };
+      } catch (err: any) {
+        return {
+          status: "error",
+          message: err?.message || "Failed to move email to trash.",
+        };
+      }
+    },
+    render: ({ args, result }) => {
+      const subject = result?.subject || state.selected?.subject || "(email)";
+      const sender = result?.sender || state.selected?.from || args?.sender || "";
+      return (
+        <div className="assistant-card delete-card">
+          <div className="assistant-card-badge danger">🗑 MOVED TO TRASH</div>
+          <div className="assistant-card-title">{subject}</div>
+          {sender && (
+            <div className="assistant-card-meta">
+              <strong>From:</strong> {sender}
+            </div>
+          )}
+          <p className="assistant-card-note">
+            The email was moved to your Gmail Trash folder and the inbox was updated.
+          </p>
+        </div>
+      );
     },
   });
 

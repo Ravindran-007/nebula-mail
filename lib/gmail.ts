@@ -338,3 +338,13 @@ export async function sendMessage(opts: {
 
   return res.data;
 }
+
+export async function trashMessage(id: string) {
+  const gmail = gmailClient();
+  const res = await gmail.users.messages.trash({
+    userId: "me",
+    id,
+  });
+  return res.data;
+}
+

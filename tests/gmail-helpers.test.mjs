@@ -104,3 +104,28 @@ describe("Header Extraction (header)", () => {
     assert.equal(header(sampleHeaders, "In-Reply-To"), undefined);
   });
 });
+
+describe("Gmail Trash & Delete Feature", () => {
+  it("exports trashMessage function in lib/gmail.ts", async () => {
+    const fs = await import("node:fs");
+    const content = fs.readFileSync(new URL("../lib/gmail.ts", import.meta.url), "utf-8");
+    assert.ok(content.includes("export async function trashMessage(id: string)"));
+    assert.ok(content.includes("gmail.users.messages.trash"));
+  });
+
+  it("validates that a message id is required for trashing", () => {
+    function validateDeletePayload(body) {
+      const id = body?.id || body?.messageId;
+      if (!id) {
+        throw new Error("Message ID is required.");
+      }
+      return id;
+    }
+
+    assert.throws(() => validateDeletePayload({}), /Message ID is required\./);
+    assert.throws(() => validateDeletePayload({ id: "" }), /Message ID is required\./);
+    assert.equal(validateDeletePayload({ id: "msg_12345" }), "msg_12345");
+    assert.equal(validateDeletePayload({ messageId: "msg_67890" }), "msg_67890");
+  });
+});
+

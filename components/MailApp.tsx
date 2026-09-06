@@ -177,6 +177,30 @@ export default function MailApp() {
     }
   }
 
+  async function deleteMessage(id: string) {
+    setError("");
+    try {
+      const res = await fetch("/api/gmail/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to move email to trash.");
+
+      if (selected?.id === id) {
+        setSelected(null);
+        setView(lastMailboxView);
+      }
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+      setToast({ type: "success", message: "Email moved to Trash." });
+      await refresh();
+    } catch (err: any) {
+      setError(err?.message || "Failed to delete email.");
+      throw err;
+    }
+  }
+
   const handleDatePresetChange = (preset: "all" | "today" | "7d" | "30d") => {
     let days: number | undefined;
     if (preset === "today") days = 1;
@@ -241,6 +265,7 @@ export default function MailApp() {
           setView,
           setFilters,
           openMessage,
+          deleteMessage,
           setCompose,
           sendCompose,
           refresh,
@@ -484,6 +509,13 @@ export default function MailApp() {
                   <button className="ghost-btn" onClick={handleInitiateForward}>
                     ↪ Forward
                   </button>
+                  <button
+                    className="ghost-btn danger-btn"
+                    onClick={() => deleteMessage(selected.id)}
+                    title="Move this email to Gmail Trash"
+                  >
+                    🗑 Move to Trash
+                  </button>
                 </div>
               </div>
 
@@ -529,6 +561,13 @@ export default function MailApp() {
                 </button>
                 <button className="forward-btn" onClick={handleInitiateForward}>
                   ↪ Forward this email
+                </button>
+                <button
+                  className="trash-btn"
+                  onClick={() => deleteMessage(selected.id)}
+                  title="Move this email to Gmail Trash"
+                >
+                  🗑 Move to Trash
                 </button>
               </div>
             </article>

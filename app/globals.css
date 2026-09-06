@@ -633,6 +633,28 @@ button { cursor: pointer; }
   color: var(--ink);
 }
 
+.ghost-btn.danger-btn {
+  color: #c53929;
+  border-color: rgba(197, 57, 41, 0.25);
+}
+
+.ghost-btn.danger-btn:hover {
+  background: #fae9e5;
+  border-color: #c53929;
+  color: #8f3a2d;
+}
+
+[data-theme="dark"] .ghost-btn.danger-btn {
+  color: #f28b82;
+  border-color: rgba(242, 139, 130, 0.3);
+}
+
+[data-theme="dark"] .ghost-btn.danger-btn:hover {
+  background: rgba(242, 139, 130, 0.15);
+  border-color: #f28b82;
+  color: #f28b82;
+}
+
 .detail-header {
   border-bottom: 1px solid var(--line);
   padding-bottom: 18px;
@@ -754,6 +776,32 @@ button { cursor: pointer; }
 .reply-btn:hover, .forward-btn:hover {
   background: var(--accent);
   color: #fff;
+}
+
+.trash-btn {
+  border: 1px solid #c53929;
+  background: var(--card-bg);
+  color: #c53929;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all .15s;
+}
+
+.trash-btn:hover {
+  background: #c53929;
+  color: #fff;
+}
+
+[data-theme="dark"] .trash-btn {
+  border-color: #f28b82;
+  color: #f28b82;
+}
+
+[data-theme="dark"] .trash-btn:hover {
+  background: #f28b82;
+  color: #111317;
 }
 
 .compose-form {
@@ -997,6 +1045,16 @@ div.copilotKitButton,
 .assistant-card-badge.warning {
   background: #fdf3d8;
   color: #b78103;
+}
+
+.assistant-card-badge.danger {
+  background: #fae9e5;
+  color: #c53929;
+}
+
+[data-theme="dark"] .assistant-card-badge.danger {
+  background: rgba(242, 139, 130, 0.2);
+  color: #f28b82;
 }
 
 .assistant-card-title {

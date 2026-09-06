@@ -19,6 +19,7 @@ Nebula Mail combines:
 - Natural-language AI control of the interface
 - AI-powered mailbox search and filtering
 - Context-aware reply drafting
+- Delete / Move to Trash using Gmail API
 - Background mailbox synchronization
 - Human confirmation before sending
 - Rich AI interaction cards
@@ -78,6 +79,7 @@ The assistant updates the actual application UI rather than returning only a tex
 - Compose
 - Reply
 - Forward
+- Delete / Move to Trash
 - Thread / conversation view
 - Unread filtering
 - Sender filtering
@@ -380,6 +382,33 @@ Expected behavior:
 
 ---
 
+### 5. Delete / Move an Email to Trash
+
+Prompt:
+
+> "Delete this email."
+
+Expected behavior:
+
+- The currently opened email is moved to Gmail Trash.
+- The message is removed from the current Inbox view.
+- The mailbox is refreshed to stay synchronized with Gmail.
+- The action is shown in the AI assistant with a confirmation card.
+
+The same workflow supports natural-language commands such as:
+
+```text
+Move this email to trash
+Delete the email from [sender]
+```
+
+
+## Demo
+
+Watch the complete Nebula Mail demonstration, including Gmail integration, AI UI control, compose/send, search and filtering, context-aware reply, real-time synchronization, delete / move to trash, and the final application view.
+
+[Watch the Nebula Mail Demo](docs/demo/demo.mp4)
+
 ## Screenshots
 
 ### 1. Inbox — Real Gmail Data
@@ -423,6 +452,11 @@ Expected behavior:
 ![Tests](docs/screenshots/10-tests-passing.png)
 
 ---
+
+
+### 11. Delete / Move to Trash
+
+![Delete / Move to Trash](docs/screenshots/11-delete-email.png)
 
 ## Testing
 
