@@ -246,6 +246,7 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=http://localhost:3000/api/gmail/callback
 GROQ_API_KEY=
+GROQ_MODEL=openai/gpt-oss-120b
 TOKEN_STORE_PATH=.gmail-token.json
 ```
 
