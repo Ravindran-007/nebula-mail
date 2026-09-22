@@ -1,6 +1,5 @@
 # Nebula Mail — AI-Powered Mail Web Application
 
-A hiring-task implementation for **Nebula KnowLab**.
 
 Nebula Mail is a real Gmail-powered mail client with an integrated AI assistant that **controls the application UI through natural language** instead of behaving as a text-only chatbot.
 
